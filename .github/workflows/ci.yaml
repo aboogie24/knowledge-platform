@@ -1,0 +1,212 @@
+name: CI - Build and Push
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - '.github/workflows/ci.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/**'
+
+env:
+  DOCKERHUB_USERNAME: aboogie24
+
+jobs:
+  # Detect which apps changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ingestion-worker: ${{ steps.filter.outputs.ingestion-worker }}
+      mcp-server: ${{ steps.filter.outputs.mcp-server }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ingestion-worker:
+              - 'apps/ingestion-worker/**'
+            mcp-server:
+              - 'apps/mcp-server/**'
+
+  # Build and push ingestion-worker
+  ingestion-worker:
+    needs: changes
+    if: needs.changes.outputs.ingestion-worker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_USERNAME }}/knowledge-ingestion-worker
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/ingestion-worker
+          file: ./apps/ingestion-worker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Build and push mcp-server
+  mcp-server:
+    needs: changes
+    if: needs.changes.outputs.mcp-server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_USERNAME }}/knowledge-mcp-server
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/mcp-server
+          file: ./apps/mcp-server/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Test ingestion-worker
+  test-ingestion-worker:
+    needs: changes
+    if: needs.changes.outputs.ingestion-worker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: ./apps/ingestion-worker
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Run linting
+        working-directory: ./apps/ingestion-worker
+        run: |
+          ruff check src/ || true
+          ruff format --check src/ || true
+
+  # Test mcp-server
+  test-mcp-server:
+    needs: changes
+    if: needs.changes.outputs.mcp-server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/mcp-server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./apps/mcp-server
+        run: npm ci
+
+      - name: Build
+        working-directory: ./apps/mcp-server
+        run: npm run build
+
+      - name: Lint
+        working-directory: ./apps/mcp-server
+        run: npm run lint || true
+
+  # Update Kustomize image tags
+  update-manifests:
+    needs: [ingestion-worker, mcp-server]
+    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (needs.ingestion-worker.result == 'success' || needs.mcp-server.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Update image tags
+        env:
+          SHORT_SHA: ${{ github.sha }}
+        run: |
+          SHA=${SHORT_SHA:0:7}
+          
+          # Update ingestion-worker if it was built
+          if [ "${{ needs.ingestion-worker.result }}" == "success" ]; then
+            yq eval -i '(.images[] | select(.name == "knowledge-platform/ingestion-worker")).newTag = "'$SHA'"' \
+              k8s/overlays/management/kustomization.yaml
+            echo "Updated ingestion-worker to $SHA"
+          fi
+          
+          # Update mcp-server if it was built
+          if [ "${{ needs.mcp-server.result }}" == "success" ]; then
+            yq eval -i '(.images[] | select(.name == "knowledge-platform/mcp-server")).newTag = "'$SHA'"' \
+              k8s/overlays/management/kustomization.yaml
+            echo "Updated mcp-server to $SHA"
+          fi
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/management/kustomization.yaml
+          git diff --staged --quiet || git commit -m "ci: update image tags to ${GITHUB_SHA:0:7}"
+          git push

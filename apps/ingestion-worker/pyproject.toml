@@ -1,0 +1,56 @@
+[project]
+name = "ingestion-worker"
+version = "0.1.0"
+description = "Ingests Wiki.js docs from GitHub into Meilisearch"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "meilisearch>=0.31.0",
+    "httpx>=0.26.0",
+    "pyyaml>=6.0",
+    "python-frontmatter>=1.1.0",
+    "markdown>=3.5",
+    "beautifulsoup4>=4.12.0",
+    "prometheus-client>=0.19.0",
+    "structlog>=24.1.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "tenacity>=8.2.0",
+    "click>=8.1.0",
+]
+
+[project.scripts]
+ingest = "ingestion.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+    "mypy>=1.8.0",
+]
+graphiti = [
+    "graphiti-core>=0.24.0",
+    "openai>=1.10.0",
+    "anthropic>=0.18.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ingestion"]
