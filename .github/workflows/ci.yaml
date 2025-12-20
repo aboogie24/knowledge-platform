@@ -12,7 +12,7 @@ on:
       - 'apps/**'
 
 env:
-  DOCKERHUB_USERNAME: aboogie24
+  DOCKERHUB_USERNAME: aboogie
 
 jobs:
   # Detect which apps changed
