@@ -1,0 +1,11 @@
+apiVersion: v2
+name: knowledge-platform
+description: Deploys Knowledge Platform services (ingestion worker and MCP server) with a Meilisearch dependency.
+type: application
+version: 0.1.0
+appVersion: "0.0.1"
+dependencies:
+  - name: meilisearch
+    version: 0.7.1
+    repository: https://meilisearch.github.io/meilisearch-kubernetes
+    condition: meilisearch.enabled

@@ -1,0 +1,77 @@
+# Global defaults
+global:
+  imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+ingestionWorker:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/your-org/ingestion-worker
+    tag: ""
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext: {}
+  service:
+    type: ClusterIP
+    port: 8080
+  env:
+    WEBHOOK_PORT: "8080"
+  meilisearch:
+    apiKey: ""
+  extraEnv: []
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+mcpServer:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/your-org/mcp-server
+    tag: ""
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext: {}
+  service:
+    enabled: false
+    type: ClusterIP
+    port: 3000
+  env:
+    LOG_LEVEL: info
+  meilisearch:
+    apiKey: ""
+  extraEnv: []
+  command: []
+  args: []
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Meilisearch subchart defaults
+meilisearch:
+  enabled: true
+  hostOverride: ""
+  port: 7700
+  scheme: http
+  apiKey: ""
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources: {}

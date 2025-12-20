@@ -1,0 +1,82 @@
+{{- if .Values.mcpServer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "knowledge-platform.mcpServer.fullname" . }}
+  labels:
+    app.kubernetes.io/component: mcp-server
+    {{- include "knowledge-platform.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.mcpServer.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: mcp-server
+      {{- include "knowledge-platform.selectorLabels" . | nindent 6 }}
+  template:
+    {{- $meiliHost := default (printf "%s-meilisearch" (include "knowledge-platform.fullname" .)) .Values.meilisearch.hostOverride -}}
+    {{- $meiliScheme := default "http" .Values.meilisearch.scheme -}}
+    {{- $meiliPort := default 7700 .Values.meilisearch.port -}}
+    {{- $meiliUrl := printf "%s://%s:%v" $meiliScheme $meiliHost $meiliPort -}}
+    {{- $mcpEnv := default (dict) .Values.mcpServer.env -}}
+    metadata:
+      labels:
+        app.kubernetes.io/component: mcp-server
+        {{- include "knowledge-platform.selectorLabels" . | nindent 8 }}
+      {{- with .Values.mcpServer.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "knowledge-platform.mcpServer.serviceAccountName" . }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.mcpServer.podSecurityContext | nindent 8 }}
+      containers:
+        - name: mcp-server
+          image: "{{ .Values.mcpServer.image.repository }}:{{ default .Chart.AppVersion .Values.mcpServer.image.tag }}"
+          imagePullPolicy: {{ .Values.mcpServer.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.mcpServer.securityContext | nindent 12 }}
+          {{- if .Values.mcpServer.command }}
+          command:
+            {{- toYaml .Values.mcpServer.command | nindent 12 }}
+          {{- end }}
+          {{- if .Values.mcpServer.args }}
+          args:
+            {{- toYaml .Values.mcpServer.args | nindent 12 }}
+          {{- end }}
+          env:
+            - name: LOG_LEVEL
+              value: {{ get $mcpEnv "LOG_LEVEL" | default "info" | quote }}
+            - name: MEILISEARCH_URL
+              value: {{ $meiliUrl | quote }}
+            - name: MEILISEARCH_API_KEY
+              value: {{ coalesce .Values.mcpServer.meilisearch.apiKey .Values.meilisearch.apiKey "" | quote }}
+            {{- range $key, $value := omit $mcpEnv "LOG_LEVEL" }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- with .Values.mcpServer.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - containerPort: {{ .Values.mcpServer.service.port }}
+              name: http
+          resources:
+            {{- toYaml .Values.mcpServer.resources | nindent 12 }}
+      {{- with .Values.mcpServer.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.mcpServer.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.mcpServer.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

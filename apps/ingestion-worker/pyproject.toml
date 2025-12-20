@@ -1,6 +1,6 @@
 [project]
 name = "ingestion-worker"
-version = "0.1.0"
+version = "0.0.1"
 description = "Ingests Wiki.js docs from GitHub into Meilisearch"
 requires-python = ">=3.11"
 dependencies = [
