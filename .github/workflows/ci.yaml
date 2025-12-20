@@ -167,46 +167,46 @@ jobs:
         working-directory: ./apps/mcp-server
         run: npm run lint || true
 
-  # Update Kustomize image tags
-  update-manifests:
-    needs: [ingestion-worker, mcp-server]
-    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (needs.ingestion-worker.result == 'success' || needs.mcp-server.result == 'success')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+  # # Update Kustomize image tags
+  # update-manifests:
+  #   needs: [ingestion-worker, mcp-server]
+  #   if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (needs.ingestion-worker.result == 'success' || needs.mcp-server.result == 'success')
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #       with:
+  #         token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
+  #     - name: Install yq
+  #       run: |
+  #         sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+  #         sudo chmod +x /usr/local/bin/yq
 
-      - name: Update image tags
-        env:
-          SHORT_SHA: ${{ github.sha }}
-        run: |
-          SHA=${SHORT_SHA:0:7}
+  #     - name: Update image tags
+  #       env:
+  #         SHORT_SHA: ${{ github.sha }}
+  #       run: |
+  #         SHA=${SHORT_SHA:0:7}
           
-          # Update ingestion-worker if it was built
-          if [ "${{ needs.ingestion-worker.result }}" == "success" ]; then
-            yq eval -i '(.images[] | select(.name == "knowledge-platform/ingestion-worker")).newTag = "'$SHA'"' \
-              k8s/overlays/management/kustomization.yaml
-            echo "Updated ingestion-worker to $SHA"
-          fi
+  #         # Update ingestion-worker if it was built
+  #         if [ "${{ needs.ingestion-worker.result }}" == "success" ]; then
+  #           yq eval -i '(.images[] | select(.name == "knowledge-platform/ingestion-worker")).newTag = "'$SHA'"' \
+  #             k8s/overlays/management/kustomization.yaml
+  #           echo "Updated ingestion-worker to $SHA"
+  #         fi
           
-          # Update mcp-server if it was built
-          if [ "${{ needs.mcp-server.result }}" == "success" ]; then
-            yq eval -i '(.images[] | select(.name == "knowledge-platform/mcp-server")).newTag = "'$SHA'"' \
-              k8s/overlays/management/kustomization.yaml
-            echo "Updated mcp-server to $SHA"
-          fi
+  #         # Update mcp-server if it was built
+  #         if [ "${{ needs.mcp-server.result }}" == "success" ]; then
+  #           yq eval -i '(.images[] | select(.name == "knowledge-platform/mcp-server")).newTag = "'$SHA'"' \
+  #             k8s/overlays/management/kustomization.yaml
+  #           echo "Updated mcp-server to $SHA"
+  #         fi
 
-      - name: Commit and push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add k8s/overlays/management/kustomization.yaml
-          git diff --staged --quiet || git commit -m "ci: update image tags to ${GITHUB_SHA:0:7}"
-          git push
+  #     - name: Commit and push
+  #       run: |
+  #         git config user.name "github-actions[bot]"
+  #         git config user.email "github-actions[bot]@users.noreply.github.com"
+  #         git add k8s/overlays/management/kustomization.yaml
+  #         git diff --staged --quiet || git commit -m "ci: update image tags to ${GITHUB_SHA:0:7}"
+  #         git push
