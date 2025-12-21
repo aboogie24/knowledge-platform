@@ -4,6 +4,5 @@
 .gitignore
 node_modules/
 venv/
-*.tgz
 *.swp
 *.bak
