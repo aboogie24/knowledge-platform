@@ -85,8 +85,10 @@ jobs:
 
       - name: Package chart
         run: |
+          mkdir -p .helm-packages
           helm dependency update charts/${{ env.CHART_NAME }}
           helm package charts/${{ env.CHART_NAME }} --destination .helm-packages
+          ls -la .helm-packages
 
       - name: Upload chart artifact
         uses: actions/upload-artifact@v4
