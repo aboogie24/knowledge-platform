@@ -1,4 +1,8 @@
 {{- if .Values.ingestionWorker.enabled }}
+{{- $registry := .Values.global.imageRegistry | trimSuffix "/" }}
+{{- $imageRepo := ternary (printf "%s/%s" $registry .Values.ingestionWorker.image.repository) .Values.ingestionWorker.image.repository (ne $registry "") }}
+{{- $meiliHost := printf "%s-meilisearch" (include "knowledge-platform.fullname" .) }}
+{{- $meiliUrl := printf "http://%s:7700" $meiliHost }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,10 +17,6 @@ spec:
       app.kubernetes.io/component: ingestion-worker
       {{- include "knowledge-platform.selectorLabels" . | nindent 6 }}
   template:
-    {{- $registry := .Values.global.imageRegistry | trimSuffix "/" -}}
-    {{- $imageRepo := ternary (printf "%s/%s" $registry .Values.ingestionWorker.image.repository) .Values.ingestionWorker.image.repository (ne $registry "") -}}
-    {{- $meiliHost := printf "%s-meilisearch" (include "knowledge-platform.fullname" .) -}}
-    {{- $meiliUrl := printf "http://%s:7700" $meiliHost -}}
     metadata:
       labels:
         app.kubernetes.io/component: ingestion-worker
