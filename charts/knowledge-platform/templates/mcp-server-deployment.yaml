@@ -13,11 +13,10 @@ spec:
       app.kubernetes.io/component: mcp-server
       {{- include "knowledge-platform.selectorLabels" . | nindent 6 }}
   template:
-    {{- $meiliHost := default (printf "%s-meilisearch" (include "knowledge-platform.fullname" .)) .Values.meilisearch.hostOverride -}}
-    {{- $meiliScheme := default "http" .Values.meilisearch.scheme -}}
-    {{- $meiliPort := default 7700 .Values.meilisearch.port -}}
-    {{- $meiliUrl := printf "%s://%s:%v" $meiliScheme $meiliHost $meiliPort -}}
-    {{- $mcpEnv := default (dict) .Values.mcpServer.env -}}
+    {{- $registry := .Values.global.imageRegistry | trimSuffix "/" -}}
+    {{- $imageRepo := ternary (printf "%s/%s" $registry .Values.mcpServer.image.repository) .Values.mcpServer.image.repository (ne $registry "") -}}
+    {{- $meiliHost := printf "%s-meilisearch" (include "knowledge-platform.fullname" .) -}}
+    {{- $meiliUrl := printf "http://%s:7700" $meiliHost -}}
     metadata:
       labels:
         app.kubernetes.io/component: mcp-server
@@ -27,38 +26,30 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
-      serviceAccountName: {{ include "knowledge-platform.mcpServer.serviceAccountName" . }}
+      serviceAccountName: {{ include "knowledge-platform.serviceAccountName" . }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
-        {{- toYaml .Values.mcpServer.podSecurityContext | nindent 8 }}
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: mcp-server
-          image: "{{ .Values.mcpServer.image.repository }}:{{ default .Chart.AppVersion .Values.mcpServer.image.tag }}"
+          image: "{{ $imageRepo }}:{{ .Values.mcpServer.image.tag }}"
           imagePullPolicy: {{ .Values.mcpServer.image.pullPolicy }}
           securityContext:
-            {{- toYaml .Values.mcpServer.securityContext | nindent 12 }}
-          {{- if .Values.mcpServer.command }}
-          command:
-            {{- toYaml .Values.mcpServer.command | nindent 12 }}
-          {{- end }}
-          {{- if .Values.mcpServer.args }}
-          args:
-            {{- toYaml .Values.mcpServer.args | nindent 12 }}
-          {{- end }}
+            {{- toYaml .Values.securityContext | nindent 12 }}
           env:
             - name: LOG_LEVEL
-              value: {{ get $mcpEnv "LOG_LEVEL" | default "info" | quote }}
+              value: "info"
             - name: MEILISEARCH_URL
               value: {{ $meiliUrl | quote }}
             - name: MEILISEARCH_API_KEY
-              value: {{ coalesce .Values.mcpServer.meilisearch.apiKey .Values.meilisearch.apiKey "" | quote }}
-            {{- range $key, $value := omit $mcpEnv "LOG_LEVEL" }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
-            {{- end }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.meilisearch.existingSecret | default (include "knowledge-platform.fullname" .) }}
+                  key: meilisearchMasterKey
+                  optional: true
             {{- with .Values.mcpServer.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

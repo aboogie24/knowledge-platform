@@ -13,11 +13,10 @@ spec:
       app.kubernetes.io/component: ingestion-worker
       {{- include "knowledge-platform.selectorLabels" . | nindent 6 }}
   template:
-    {{- $meiliHost := default (printf "%s-meilisearch" (include "knowledge-platform.fullname" .)) .Values.meilisearch.hostOverride -}}
-    {{- $meiliScheme := default "http" .Values.meilisearch.scheme -}}
-    {{- $meiliPort := default 7700 .Values.meilisearch.port -}}
-    {{- $meiliUrl := printf "%s://%s:%v" $meiliScheme $meiliHost $meiliPort -}}
-    {{- $ingestionEnv := default (dict) .Values.ingestionWorker.env -}}
+    {{- $registry := .Values.global.imageRegistry | trimSuffix "/" -}}
+    {{- $imageRepo := ternary (printf "%s/%s" $registry .Values.ingestionWorker.image.repository) .Values.ingestionWorker.image.repository (ne $registry "") -}}
+    {{- $meiliHost := printf "%s-meilisearch" (include "knowledge-platform.fullname" .) -}}
+    {{- $meiliUrl := printf "http://%s:7700" $meiliHost -}}
     metadata:
       labels:
         app.kubernetes.io/component: ingestion-worker
@@ -27,35 +26,74 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
-      serviceAccountName: {{ include "knowledge-platform.ingestionWorker.serviceAccountName" . }}
+      serviceAccountName: {{ include "knowledge-platform.serviceAccountName" . }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       securityContext:
-        {{- toYaml .Values.ingestionWorker.podSecurityContext | nindent 8 }}
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: ingestion-worker
-          image: "{{ .Values.ingestionWorker.image.repository }}:{{ default .Chart.AppVersion .Values.ingestionWorker.image.tag }}"
+          image: "{{ $imageRepo }}:{{ .Values.ingestionWorker.image.tag }}"
           imagePullPolicy: {{ .Values.ingestionWorker.image.pullPolicy }}
           securityContext:
-            {{- toYaml .Values.ingestionWorker.securityContext | nindent 12 }}
+            {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
             - containerPort: {{ .Values.ingestionWorker.service.port }}
               name: http
           env:
             - name: WEBHOOK_PORT
-              value: {{ get $ingestionEnv "WEBHOOK_PORT" | default "8080" | quote }}
+              value: {{ .Values.ingestionWorker.service.port | quote }}
+            - name: GITHUB_REPO
+              value: {{ .Values.ingestionWorker.github.repo | quote }}
+            - name: GITHUB_BRANCH
+              value: {{ .Values.ingestionWorker.github.branch | quote }}
+            - name: DOCS_PATH
+              value: {{ .Values.ingestionWorker.github.docsPath | quote }}
+            - name: INGESTION_MODE
+              value: {{ .Values.ingestionWorker.ingestion.mode | quote }}
+            - name: POLL_INTERVAL
+              value: {{ .Values.ingestionWorker.ingestion.pollInterval | quote }}
+            - name: CHUNK_SIZE
+              value: {{ .Values.ingestionWorker.ingestion.chunkSize | quote }}
+            - name: CHUNK_OVERLAP
+              value: {{ .Values.ingestionWorker.ingestion.chunkOverlap | quote }}
             - name: MEILISEARCH_URL
               value: {{ $meiliUrl | quote }}
             - name: MEILISEARCH_API_KEY
-              value: {{ coalesce .Values.ingestionWorker.meilisearch.apiKey .Values.meilisearch.apiKey "" | quote }}
-            {{- range $key, $value := omit $ingestionEnv "WEBHOOK_PORT" }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.meilisearch.existingSecret | default (include "knowledge-platform.fullname" .) }}
+                  key: meilisearchMasterKey
+                  optional: true
+            {{- if .Values.ingestionWorker.existingSecret }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ingestionWorker.existingSecret }}
+                  key: GITHUB_TOKEN
+                  optional: true
+            - name: GITHUB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ingestionWorker.existingSecret }}
+                  key: GITHUB_WEBHOOK_SECRET
+                  optional: true
             {{- end }}
-            {{- with .Values.ingestionWorker.extraEnv }}
-            {{- toYaml . | nindent 12 }}
+            {{- if .Values.secrets.create }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "knowledge-platform.fullname" . }}
+                  key: githubToken
+                  optional: true
+            - name: GITHUB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "knowledge-platform.fullname" . }}
+                  key: githubWebhookSecret
+                  optional: true
             {{- end }}
           livenessProbe:
             httpGet:

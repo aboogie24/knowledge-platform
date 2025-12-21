@@ -1,77 +1,157 @@
-# Global defaults
+# Global settings
 global:
+  imageRegistry: ""
   imagePullSecrets: []
 
 nameOverride: ""
 fullnameOverride: ""
 
+# Ingestion Worker Configuration
 ingestionWorker:
   enabled: true
   replicaCount: 1
+
   image:
-    repository: ghcr.io/your-org/ingestion-worker
-    tag: ""
+    repository: aboogie24/knowledge-ingestion-worker
+    tag: "latest"
     pullPolicy: IfNotPresent
-  serviceAccount:
-    create: true
-    annotations: {}
-    name: ""
-  podAnnotations: {}
-  podLabels: {}
-  podSecurityContext: {}
-  securityContext: {}
+
+  # GitHub Configuration
+  github:
+    repo: ""           # Required: e.g., "aboogie24/wiki-content"
+    branch: "main"
+    docsPath: "."
+    # token: ""        # Set via existingSecret
+    # webhookSecret: "" # Set via existingSecret
+
+  # Use existing secret for sensitive values
+  existingSecret: ""   # Secret containing GITHUB_TOKEN, GITHUB_WEBHOOK_SECRET
+
+  ingestion:
+    mode: "webhook"    # webhook, poll, or manual
+    pollInterval: 300
+    chunkSize: 1000
+    chunkOverlap: 200
+
   service:
     type: ClusterIP
     port: 8080
-  env:
-    WEBHOOK_PORT: "8080"
-  meilisearch:
-    apiKey: ""
-  extraEnv: []
-  resources: {}
+
+  ingress:
+    enabled: false
+    className: "nginx"
+    annotations: {}
+    hosts:
+      - host: knowledge-webhook.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
   nodeSelector: {}
   tolerations: []
   affinity: {}
 
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+
+# MCP Server Configuration
 mcpServer:
   enabled: true
   replicaCount: 1
+
   image:
-    repository: ghcr.io/your-org/mcp-server
-    tag: ""
+    repository: aboogie24/knowledge-mcp-server
+    tag: "latest"
     pullPolicy: IfNotPresent
-  serviceAccount:
-    create: true
-    annotations: {}
-    name: ""
-  podAnnotations: {}
-  podLabels: {}
-  podSecurityContext: {}
-  securityContext: {}
+
   service:
-    enabled: false
     type: ClusterIP
     port: 3000
-  env:
-    LOG_LEVEL: info
-  meilisearch:
-    apiKey: ""
-  extraEnv: []
-  command: []
-  args: []
-  resources: {}
+    enabled: true
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  extraEnv: []
+  podAnnotations: {}
 
-# Meilisearch subchart defaults
+# Meilisearch Configuration (subchart)
 meilisearch:
   enabled: true
-  hostOverride: ""
-  port: 7700
-  scheme: http
-  apiKey: ""
+
+  environment:
+    MEILI_ENV: "production"
+    MEILI_NO_ANALYTICS: "true"
+
+  # Auth - set master key
+  auth:
+    existingMasterKeySecret: ""  # Use existing secret
+    # masterKey: ""              # Or set directly (not recommended)
+
   persistence:
     enabled: true
     size: 10Gi
-  resources: {}
+    storageClass: ""
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# Shared secrets configuration
+secrets:
+  # Create secrets via Helm (not recommended for production)
+  create: false
+
+  # Values (only used if create: true)
+  github:
+    token: ""
+    webhookSecret: ""
+  meilisearch:
+    masterKey: ""
+    existingSecret: ""
+  openai:
+    apiKey: ""
+  anthropic:
+    apiKey: ""
+
+# ServiceAccount
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL

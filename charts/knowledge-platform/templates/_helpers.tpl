@@ -46,25 +46,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{/*
-Service account names
-*/}}
-{{- define "knowledge-platform.ingestionWorker.serviceAccountName" -}}
-{{- if .Values.ingestionWorker.serviceAccount.create -}}
-{{- default (printf "%s-ingestion-worker" (include "knowledge-platform.fullname" .)) .Values.ingestionWorker.serviceAccount.name -}}
-{{- else -}}
-{{- default "default" .Values.ingestionWorker.serviceAccount.name -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "knowledge-platform.mcpServer.serviceAccountName" -}}
-{{- if .Values.mcpServer.serviceAccount.create -}}
-{{- default (printf "%s-mcp-server" (include "knowledge-platform.fullname" .)) .Values.mcpServer.serviceAccount.name -}}
-{{- else -}}
-{{- default "default" .Values.mcpServer.serviceAccount.name -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
 Component-specific names
 */}}
 {{- define "knowledge-platform.ingestionWorker.fullname" -}}
@@ -73,4 +54,15 @@ Component-specific names
 
 {{- define "knowledge-platform.mcpServer.fullname" -}}
 {{- printf "%s-mcp-server" (include "knowledge-platform.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Service account name (shared)
+*/}}
+{{- define "knowledge-platform.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
+{{- default (include "knowledge-platform.fullname" .) .Values.serviceAccount.name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- default "default" .Values.serviceAccount.name -}}
+{{- end -}}
 {{- end -}}
