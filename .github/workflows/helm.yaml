@@ -15,7 +15,7 @@ on:
 
 env:
   CHART_NAME: knowledge-platform
-  HARBOR_REGISTRY: harbor.internal
+  HARBOR_REGISTRY: harbor.justpurple.org
   HARBOR_PROJECT: knowledge-platform
 
 jobs:
