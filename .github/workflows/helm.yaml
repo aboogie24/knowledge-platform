@@ -201,9 +201,13 @@ jobs:
     needs: [publish-pages]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/chart-v')
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with: 
+          ref: main
 
       - name: Create/Update artifacthub-repo.yml
         run: |
