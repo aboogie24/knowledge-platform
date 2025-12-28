@@ -115,7 +115,7 @@ jobs:
       - name: Login and push to Harbor OCI registry
         run: |
           helm registry login ${{ env.HARBOR_REGISTRY }} \
-            --username "${{ secrets.HARBOR_USERNAME }}" \
+            --username "robot$knowledge-platform+knowledge-platform" \
             --password-stdin <<< "${{ secrets.HARBOR_PASSWORD }}"
           ls helm-packages
           CHART_PACKAGE=$(ls helm-packages/*.tgz)
