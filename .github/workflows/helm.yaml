@@ -116,7 +116,7 @@ jobs:
         run: |
           echo "${{ secrets.HARBOR_ROBOT_TOKEN }}" | \
             helm registry login ${{ env.HARBOR_REGISTRY }} \
-              --username "robot$knowledge-platform+ci" \
+              --username 'robot$knowledge-platform+ci' \
               --password-stdin
           ls helm-packages
           CHART_PACKAGE=$(ls helm-packages/*.tgz)
