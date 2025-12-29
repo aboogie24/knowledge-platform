@@ -13,6 +13,8 @@ on:
 
 env:
   DOCKERHUB_USERNAME: aboogie
+  HARBOR_REGISTRY: harbor.justpurple.org
+  HARBOR_PROJECT: knowledge-platform
 
 jobs:
   # Detect which apps changed
@@ -51,11 +53,21 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Log in to Harbor
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.HARBOR_REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.DOCKERHUB_USERNAME }}/knowledge-ingestion-worker
+          images: |
+            ${{ env.DOCKERHUB_USERNAME }}/knowledge-ingestion-worker
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/knowledge-ingestion-worker
           tags: |
             type=sha,prefix=
             type=ref,event=branch
@@ -92,11 +104,21 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Log in to Harbor
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.HARBOR_REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.DOCKERHUB_USERNAME }}/knowledge-mcp-server
+          images: |
+            ${{ env.DOCKERHUB_USERNAME }}/knowledge-mcp-server
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/knowledge-mcp-server
           tags: |
             type=sha,prefix=
             type=ref,event=branch
