@@ -86,13 +86,13 @@ spec:
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "knowledge-platform.fullname" . }}
+                  name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.openai.existingSecret | default (include "knowledge-platform.fullname" .) }}
                   key: openaiApiKey
                   optional: true
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "knowledge-platform.fullname" . }}
+                  name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.anthropic.existingSecret | default (include "knowledge-platform.fullname" .) }}
                   key: anthropicApiKey
                   optional: true
             {{- if .Values.ingestionWorker.existingSecret }}

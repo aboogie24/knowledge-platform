@@ -163,8 +163,10 @@ secrets:
     existingSecret: ""
   openai:
     apiKey: ""
+    existingSecret: ""
   anthropic:
     apiKey: ""
+    existingSecret: ""
 
 # ServiceAccount
 serviceAccount:
