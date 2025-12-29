@@ -139,12 +139,11 @@ neo4j:
   resources: {}
   volumes:
     data:
-      mode: volume
-      volume:
-        persistentVolumeClaim:
-          resources:
-            requests:
-              storage: 8Gi
+      mode: defaultStorageClass
+      defaultStorageClass:
+        resources:
+          requests:
+            storage: 8Gi
 
 # Shared secrets configuration
 secrets:
