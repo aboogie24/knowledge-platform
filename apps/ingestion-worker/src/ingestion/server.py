@@ -5,12 +5,14 @@ import hmac
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Header, Request, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 import structlog
 
 from ingestion.config import settings
 from ingestion.orchestrator import orchestrator
+from ingestion.redis_streams import RedisStreams
+from ingestion.slack import handle_slack_webhook
 
 logger = structlog.get_logger()
 
@@ -29,7 +31,19 @@ DOCUMENTS_INDEXED = Counter(
     "ingestion_documents_indexed_total",
     "Total documents indexed",
 )
+EVENTS_ENQUEUED = Counter(
+    "ingestion_events_enqueued_total",
+    "Total events enqueued to Redis Streams",
+    ["source"],
+)
+EVENTS_PROCESSED = Counter(
+    "ingestion_events_processed_total",
+    "Total events processed from Redis Streams",
+    ["source"],
+)
 
+redis_client: RedisStreams | None = None
+consumer_task = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,6 +51,27 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("starting_ingestion_worker")
     await orchestrator.initialize()
+    
+    # Connect Redis and start consumer if configured
+    global redis_client, consumer_task
+    redis_client = RedisStreams(
+        redis_url=settings.redis_url,
+        stream=settings.redis_stream,
+        dlq_stream=settings.redis_dlq_stream,
+        group=settings.redis_consumer_group,
+        consumer_name=settings.redis_consumer_name,
+    )
+    try:
+        await redis_client.connect()
+        import asyncio
+
+        async def _consume():
+            await redis_client.consume_forever(process_event)
+
+        consumer_task = asyncio.create_task(_consume())
+        logger.info("redis_consumer_started", stream=settings.redis_stream, group=settings.redis_consumer_group)
+    except Exception as exc:
+        logger.warning("redis_consumer_not_started", error=str(exc))
     
     # If mode is poll, start background polling
     if settings.ingestion_mode == "poll":
@@ -46,6 +81,14 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
+    if consumer_task:
+        consumer_task.cancel()
+        try:
+            await consumer_task
+        except Exception:
+            pass
+    if redis_client:
+        await redis_client.stop()
     logger.info("shutting_down_ingestion_worker")
 
 
@@ -72,6 +115,20 @@ async def poll_loop():
             logger.error("poll_sync_failed", error=str(e))
         
         await asyncio.sleep(settings.poll_interval_seconds)
+
+
+async def process_event(event: dict):
+    """Dispatch events from Redis Streams."""
+    source = event.get("source", "unknown")
+    try:
+        if source == "slack":
+            # TODO: add real Slack extractor/handler here
+            logger.info("slack_event_received", event_id=event.get("id"))
+        else:
+            logger.info("event_received_unknown_source", source=source)
+        EVENTS_PROCESSED.labels(source=source).inc()
+    except Exception as exc:
+        logger.error("event_processing_failed", error=str(exc), source=source)
 
 
 def verify_github_signature(payload: bytes, signature: str) -> bool:
@@ -164,6 +221,25 @@ async def github_webhook(
     background_tasks.add_task(process_push)
     
     return {"status": "accepted", "processing": "background"}
+
+
+@app.post("/webhook/slack")
+async def slack_webhook(
+    request: Request,
+    x_slack_signature: str | None = Header(None),
+    x_slack_request_timestamp: str | None = Header(None),
+):
+    """Handle Slack Events API."""
+    if not redis_client:
+        raise HTTPException(status_code=503, detail="Queue not available")
+    result = await handle_slack_webhook(
+        request=request,
+        redis_client=redis_client,
+        x_slack_signature=x_slack_signature,
+        x_slack_request_timestamp=x_slack_request_timestamp,
+    )
+    EVENTS_ENQUEUED.labels(source="slack").inc()
+    return result
 
 
 # Manual sync endpoints

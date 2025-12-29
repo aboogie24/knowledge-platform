@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     )
     github_token: str = Field(description="GitHub PAT for API access")
     github_webhook_secret: str = Field(default="", description="Webhook secret for verification")
+    slack_signing_secret: str = Field(default="", description="Slack signing secret for Events API")
 
     # Meilisearch configuration
     meilisearch_url: str = Field(default="http://localhost:7700")
@@ -43,6 +44,13 @@ class Settings(BaseSettings):
     poll_interval_seconds: int = Field(default=300)
     chunk_size: int = Field(default=1000, description="Characters per chunk")
     chunk_overlap: int = Field(default=200, description="Overlap between chunks")
+
+    # Redis / queue settings
+    redis_url: str = Field(default="redis://localhost:6379/0")
+    redis_stream: str = Field(default="ingestion:events")
+    redis_dlq_stream: str = Field(default="ingestion:dlq")
+    redis_consumer_group: str = Field(default="ingestion-workers")
+    redis_consumer_name: str = Field(default="ingestion-worker")
 
     # Server settings
     webhook_port: int = Field(default=8080)

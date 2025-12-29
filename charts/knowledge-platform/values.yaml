@@ -73,6 +73,15 @@ ingestionWorker:
     useAnthropic: true
     anthropicModel: claude-3-5-sonnet-20240620
     openaiModel: gpt-4o-mini
+  redis:
+    url: redis://knowledge-platform-redis-master:6379/0
+    stream: ingestion:events
+    dlqStream: ingestion:dlq
+    consumerGroup: ingestion-workers
+    consumerName: ingestion-worker
+  slack:
+    signingSecret: ""
+    existingSecret: ""
 
 # MCP Server Configuration
 mcpServer:
@@ -155,6 +164,14 @@ neo4j:
           requests:
             storage: 8Gi
 
+# Redis subchart (Bitnami)
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  fullnameOverride: knowledge-platform-redis
+
 # Shared secrets configuration
 secrets:
   # Create secrets via Helm (not recommended for production)
@@ -177,6 +194,8 @@ secrets:
   anthropic:
     apiKey: ""
     existingSecret: ""
+  slack:
+    signingSecret: ""
 
 # ServiceAccount
 serviceAccount:

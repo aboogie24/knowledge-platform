@@ -67,6 +67,22 @@ spec:
                   name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.meilisearch.existingSecret | default (include "knowledge-platform.fullname" .) }}
                   key: {{ default "masterKey" .Values.secrets.meilisearch.keyRef }}
                   optional: true
+            - name: SLACK_SIGNING_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.slack.existingSecret | default (include "knowledge-platform.fullname" .) }}
+                  key: slackSigningSecret
+                  optional: true
+            - name: REDIS_URL
+              value: {{ .Values.ingestionWorker.redis.url | quote }}
+            - name: REDIS_STREAM
+              value: {{ .Values.ingestionWorker.redis.stream | quote }}
+            - name: REDIS_DLQ_STREAM
+              value: {{ .Values.ingestionWorker.redis.dlqStream | quote }}
+            - name: REDIS_CONSUMER_GROUP
+              value: {{ .Values.ingestionWorker.redis.consumerGroup | quote }}
+            - name: REDIS_CONSUMER_NAME
+              value: {{ .Values.ingestionWorker.redis.consumerName | quote }}
             - name: NEO4J_URI
               value: {{ .Values.ingestionWorker.neo4j.uri | quote }}
             - name: NEO4J_USER

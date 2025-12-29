@@ -1,12 +1,13 @@
 [project]
 name = "ingestion-worker"
-version = "0.0.1"
+version = "0.0.2"
 description = "Ingests Wiki.js docs from GitHub into Meilisearch"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
     "meilisearch>=0.31.0",
+    "redis>=5.0.0",
     "httpx>=0.26.0",
     "pyyaml>=6.0",
     "python-frontmatter>=1.1.0",

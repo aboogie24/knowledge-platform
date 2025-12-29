@@ -13,3 +13,14 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 ANTHROPIC_API_KEY=
 ANTHROPIC_MODEL=claude-3-5-sonnet-20240620
+
+# Slack Events
+GITHUB_WEBHOOK_SECRET=
+SLACK_SIGNING_SECRET=
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+REDIS_STREAM=ingestion:events
+REDIS_DLQ_STREAM=ingestion:dlq
+REDIS_CONSUMER_GROUP=ingestion-workers
+REDIS_CONSUMER_NAME=ingestion-worker
