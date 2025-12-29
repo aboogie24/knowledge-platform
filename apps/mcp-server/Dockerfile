@@ -10,7 +10,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 # Copy source code
-COPY Tsconfig.json ./
+COPY tsconfig.json ./
 COPY src/ ./src/
 
 # Build TypeScript
@@ -21,9 +21,6 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser
-
 # Copy package files and install production dependencies only
 COPY package.json package-lock.json* ./
 RUN npm ci --only=production && npm cache clean --force
@@ -31,10 +28,7 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy built application
 COPY --from=builder /app/dist ./dist
 
-# Set ownership
-RUN chown -R appuser:appuser /app
-
-USER appuser
+USER node
 
 # Environment variables
 ENV NODE_ENV=production \
