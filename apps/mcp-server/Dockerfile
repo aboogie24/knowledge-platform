@@ -10,7 +10,7 @@ COPY package.json package-lock.json* ./
 RUN npm ci
 
 # Copy source code
-COPY tsconfig.json ./
+COPY Tsconfig.json ./
 COPY src/ ./src/
 
 # Build TypeScript
