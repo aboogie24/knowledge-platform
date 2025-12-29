@@ -24,6 +24,7 @@ const config = {
   logLevel: (process.env.LOG_LEVEL || "info") as LevelWithSilent,
 };
 
+
 // Logger
 const logger = pino({
   level: config.logLevel,
