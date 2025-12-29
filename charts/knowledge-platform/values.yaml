@@ -132,6 +132,7 @@ meilisearch:
 # Neo4j Configuration (subchart)
 neo4j:
   enabled: true
+  name: knowledge-neo4j
   acceptLicenseAgreement: "yes"
   edition: community
   resources: {}
