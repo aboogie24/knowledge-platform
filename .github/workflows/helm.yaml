@@ -35,6 +35,18 @@ jobs:
       - name: Add dependency repos
         run: |
           helm repo add meilisearch https://meilisearch.github.io/meilisearch-kubernetes
+          helm repo add neo4j https://neo4j.github.io/helm-charts
+
+      - name: Bump chart version (patch)
+        run: |
+          chart_dir=charts/${{ env.CHART_NAME }}
+          current=$(yq e '.version' "${chart_dir}/Chart.yaml")
+          base=${current%%-*}
+          IFS=. read -r major minor patch <<<"$base"
+          patch=$((patch+1))
+          new="${major}.${minor}.${patch}"
+          yq e -i ".version = \"${new}\"" "${chart_dir}/Chart.yaml"
+          echo "Chart version: ${new}"
 
       - name: Lint chart
         run: |
