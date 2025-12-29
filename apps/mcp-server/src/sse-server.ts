@@ -6,7 +6,7 @@
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -15,6 +15,7 @@ import {
 import { MeiliSearch } from "meilisearch";
 import { createServer } from "http";
 import { parse } from "url";
+import { randomUUID } from "crypto";
 import { pino, type LevelWithSilent } from "pino";
 
 // Configuration
@@ -202,32 +203,33 @@ function createMCPServer() {
   return server;
 }
 
-// HTTP server with SSE transport
+// HTTP server with streamable transport (supports SSE + HTTP)
 const httpServer = createServer(async (req, res) => {
   const url = parse(req.url || "", true);
-  
+
   // Health check
   if (url.pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ status: "healthy" }));
     return;
   }
-  
-  // MCP SSE endpoint
-  if (url.pathname === "/mcp" || url.pathname === "/sse") {
+
+  // MCP endpoint - handles both GET (SSE) and POST (messages)
+  if (url.pathname === "/mcp") {
     const server = createMCPServer();
-    const transport = new SSEServerTransport("/mcp", res);
-    
-    res.on("close", () => {
-      logger.info("SSE connection closed");
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
     });
-    
+
+    res.on("close", () => {
+      logger.info("Connection closed");
+    });
+
     await server.connect(transport);
-    logger.info("SSE connection established");
+    await transport.handleRequest(req, res);
     return;
   }
-  
-  // 404 for other paths
+
   res.writeHead(404);
   res.end("Not found");
 });
