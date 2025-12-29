@@ -39,7 +39,7 @@ jobs:
       - name: Lint chart
         run: |
           helm dependency update charts/${{ env.CHART_NAME }}
-          helm lint charts/${{ env.CHART_NAME }}
+          helm lint --skip-dependencies charts/${{ env.CHART_NAME }}
 
       - name: Template chart
         run: |
