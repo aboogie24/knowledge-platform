@@ -1,0 +1,34 @@
+{{- if and .Values.mcpServer.enabled .Values.mcpServer.ingress.enabled .Values.mcpServer.service.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ printf "%s-mcp" (include "knowledge-platform.mcpServer.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    app.kubernetes.io/component: mcp-server
+    {{- include "knowledge-platform.labels" . | nindent 4 }}
+  {{- with .Values.mcpServer.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.mcpServer.ingress.className }}
+  rules:
+    {{- range .Values.mcpServer.ingress.hosts }}
+    - host: {{ .host }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "knowledge-platform.mcpServer.fullname" $ }}
+                port:
+                  number: {{ $.Values.mcpServer.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- if .Values.mcpServer.ingress.tls }}
+  tls:
+    {{- toYaml .Values.mcpServer.ingress.tls | nindent 4 }}
+  {{- end }}
+{{- end }}
