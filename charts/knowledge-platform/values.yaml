@@ -156,8 +156,9 @@ secrets:
     token: ""
     webhookSecret: ""
   meilisearch:
-    masterKey: ""
-    existingSecret: ""
+    masterKey: "changeme-master-key"
+    existingSecret: "knowledge-platform-meilisearch-master-key"
+    keyRef: MEILI_MASTER_KEY
   neo4j:
     password: ""
     existingSecret: ""

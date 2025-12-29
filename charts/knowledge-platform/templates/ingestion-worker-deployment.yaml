@@ -65,7 +65,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.meilisearch.existingSecret | default (include "knowledge-platform.fullname" .) }}
-                  key: meilisearchMasterKey
+                  key: {{ default "masterKey" .Values.secrets.meilisearch.keyRef }}
                   optional: true
             - name: NEO4J_URI
               value: {{ .Values.ingestionWorker.neo4j.uri | quote }}
