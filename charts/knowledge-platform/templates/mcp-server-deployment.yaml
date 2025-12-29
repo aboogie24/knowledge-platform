@@ -48,7 +48,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.meilisearch.existingSecret | default (include "knowledge-platform.fullname" .) }}
-                  key: meilisearchMasterKey
+                  key: MEILI_MASTER_KEY
                   optional: true
             {{- with .Values.mcpServer.extraEnv }}
             {{- toYaml . | nindent 12 }}
