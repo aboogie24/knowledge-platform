@@ -64,6 +64,15 @@ ingestionWorker:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
     prometheus.io/path: "/metrics"
+  neo4j:
+    uri: bolt://neo4j:7687
+    user: neo4j
+    password: ""
+    enabled: true
+  llm:
+    useAnthropic: true
+    anthropicModel: claude-3-5-sonnet-20240620
+    openaiModel: gpt-4o-mini
 
 # MCP Server Configuration
 mcpServer:
@@ -120,6 +129,21 @@ meilisearch:
       memory: "1Gi"
       cpu: "500m"
 
+# Neo4j Configuration (subchart)
+neo4j:
+  enabled: true
+  acceptLicenseAgreement: "yes"
+  edition: community
+  resources: {}
+  volumes:
+    data:
+      mode: volume
+      volume:
+        persistentVolumeClaim:
+          resources:
+            requests:
+              storage: 8Gi
+
 # Shared secrets configuration
 secrets:
   # Create secrets via Helm (not recommended for production)
@@ -131,6 +155,9 @@ secrets:
     webhookSecret: ""
   meilisearch:
     masterKey: ""
+    existingSecret: ""
+  neo4j:
+    password: ""
     existingSecret: ""
   openai:
     apiKey: ""

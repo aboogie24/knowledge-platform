@@ -9,6 +9,7 @@ from ingestion.config import settings
 from ingestion.github_client import GitHubClient, GitHubFile
 from ingestion.parser import DocumentParser, ParsedDocument, DocumentChunk
 from ingestion.indexer import MeilisearchIndexer
+from ingestion.graphiti_client import GraphitiIndexer
 
 logger = structlog.get_logger()
 
@@ -20,6 +21,7 @@ class IngestionOrchestrator:
         self.github = GitHubClient()
         self.parser = DocumentParser()
         self.indexer = MeilisearchIndexer()
+        self.graphiti = GraphitiIndexer()
         
         # Track state
         self.last_sync: datetime | None = None
@@ -34,6 +36,7 @@ class IngestionOrchestrator:
     async def initialize(self):
         """Initialize all components."""
         await self.indexer.initialize()
+        await self.graphiti.initialize()
         logger.info("ingestion_orchestrator_initialized")
 
     async def full_sync(self) -> dict:
@@ -66,6 +69,7 @@ class IngestionOrchestrator:
         # Batch index
         if all_docs:
             await self.indexer.index_batch(all_docs, all_chunks)
+            await self.graphiti.index_documents(all_docs)
             self.stats["total_indexed"] += len(all_docs)
             self.stats["total_chunks"] += len(all_chunks)
 
@@ -102,6 +106,7 @@ class IngestionOrchestrator:
                 # Index document and chunks
                 await self.indexer.index_document(doc)
                 await self.indexer.index_chunks(chunks)
+                await self.graphiti.index_document(doc)
 
                 processed.append(path)
                 self.stats["total_processed"] += 1

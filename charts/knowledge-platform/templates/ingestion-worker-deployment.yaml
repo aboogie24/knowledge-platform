@@ -67,6 +67,34 @@ spec:
                   name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.meilisearch.existingSecret | default (include "knowledge-platform.fullname" .) }}
                   key: meilisearchMasterKey
                   optional: true
+            - name: NEO4J_URI
+              value: {{ .Values.ingestionWorker.neo4j.uri | quote }}
+            - name: NEO4J_USER
+              value: {{ .Values.ingestionWorker.neo4j.user | quote }}
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (include "knowledge-platform.fullname" .) .Values.secrets.neo4j.existingSecret | default (include "knowledge-platform.fullname" .) }}
+                  key: neo4jPassword
+                  optional: true
+            - name: OPENAI_MODEL
+              value: {{ .Values.ingestionWorker.llm.openaiModel | quote }}
+            - name: ANTHROPIC_MODEL
+              value: {{ .Values.ingestionWorker.llm.anthropicModel | quote }}
+            - name: USE_ANTHROPIC
+              value: {{ ternary "true" "false" .Values.ingestionWorker.llm.useAnthropic | quote }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "knowledge-platform.fullname" . }}
+                  key: openaiApiKey
+                  optional: true
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "knowledge-platform.fullname" . }}
+                  key: anthropicApiKey
+                  optional: true
             {{- if .Values.ingestionWorker.existingSecret }}
             - name: GITHUB_TOKEN
               valueFrom:

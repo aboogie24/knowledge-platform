@@ -25,10 +25,14 @@ class Settings(BaseSettings):
     neo4j_uri: str = Field(default="bolt://localhost:7687")
     neo4j_user: str = Field(default="neo4j")
     neo4j_password: str = Field(default="")
+    neo4j_enabled: bool = Field(default=True, description="Toggle Graphiti/Neo4j integration")
 
     # LLM configuration (for Graphiti semantic extraction)
     openai_api_key: str = Field(default="")
+    openai_model: str = Field(default="gpt-4o-mini")
     anthropic_api_key: str = Field(default="")
+    anthropic_model: str = Field(default="claude-3-5-sonnet-20240620")
+    use_anthropic: bool = Field(default=True)
 
     # Ingestion settings
     ingestion_mode: str = Field(default="webhook", description="webhook, poll, or manual")
@@ -54,6 +58,8 @@ class Settings(BaseSettings):
     @property
     def use_graphiti(self) -> bool:
         """Whether Graphiti (Neo4j) is configured."""
+        if not self.neo4j_enabled:
+            return False
         return bool(self.neo4j_password and (self.openai_api_key or self.anthropic_api_key))
 
 

@@ -9,3 +9,7 @@ dependencies:
     version: 0.19.0
     repository: https://meilisearch.github.io/meilisearch-kubernetes
     condition: meilisearch.enabled
+  - name: neo4j
+    version: 2025.10.1
+    repository: https://neo4j.github.io/helm-charts
+    condition: neo4j.enabled
