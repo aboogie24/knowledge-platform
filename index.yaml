@@ -1,0 +1,24 @@
+apiVersion: v1
+entries:
+  knowledge-platform:
+  - apiVersion: v2
+    appVersion: 0.0.1
+    created: "2025-12-29T17:08:30.429083552Z"
+    dependencies:
+    - condition: meilisearch.enabled
+      name: meilisearch
+      repository: https://meilisearch.github.io/meilisearch-kubernetes
+      version: 0.19.0
+    - condition: neo4j.enabled
+      name: neo4j
+      repository: https://neo4j.github.io/helm-charts
+      version: 2025.10.1
+    description: Deploys Knowledge Platform services (ingestion worker and MCP server)
+      with a Meilisearch dependency.
+    digest: f29f07ae54ac9d30d18c5078a6e2f86e21cf73adc462890e9fcd1c8fb81d5d46
+    name: knowledge-platform
+    type: application
+    urls:
+    - https://github.com/aboogie24/knowledge-platform/releases/download/knowledge-platform-0.1.1/knowledge-platform-0.1.1.tgz
+    version: 0.1.1
+generated: "2025-12-29T17:08:30.429094021Z"
