@@ -12,7 +12,11 @@ class Settings(BaseSettings):
     # GitHub configuration
     github_repo: str = Field(description="GitHub repo in format 'owner/repo'")
     github_branch: str = Field(default="main", description="Branch to watch")
-    github_docs_path: str = Field(default="docs", description="Path to docs in repo")
+    github_docs_path: str = Field(
+        default="docs",
+        description="Path to docs in repo",
+        alias="GITHUB_DOCS_PATH",
+    )
     github_token: str = Field(description="GitHub PAT for API access")
     github_webhook_secret: str = Field(default="", description="Webhook secret for verification")
 

@@ -49,7 +49,7 @@ spec:
               value: {{ .Values.ingestionWorker.github.repo | quote }}
             - name: GITHUB_BRANCH
               value: {{ .Values.ingestionWorker.github.branch | quote }}
-            - name: DOCS_PATH
+            - name: GITHUB_DOCS_PATH
               value: {{ .Values.ingestionWorker.github.docsPath | quote }}
             - name: INGESTION_MODE
               value: {{ .Values.ingestionWorker.ingestion.mode | quote }}
