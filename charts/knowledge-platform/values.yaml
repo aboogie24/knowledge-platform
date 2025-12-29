@@ -183,3 +183,4 @@ securityContext:
   capabilities:
     drop:
       - ALL
+
