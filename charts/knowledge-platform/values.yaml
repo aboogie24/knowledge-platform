@@ -95,7 +95,7 @@ mcpServer:
     hosts:
       - host: mcp.local
         paths:
-          - path: /
+          - path: /mcp
             pathType: Prefix
     tls: []
 

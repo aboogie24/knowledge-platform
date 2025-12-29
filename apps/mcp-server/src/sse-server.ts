@@ -1,7 +1,7 @@
 /**
- * Knowledge Platform MCP Server - SSE Transport
+ * Knowledge Platform MCP Server - Streamable HTTP Transport
  * 
- * HTTP server for MCP over Server-Sent Events.
+ * HTTP server for MCP over Streamable HTTP.
  * Used for deployment in Kubernetes where stdio isn't available.
  */
 
@@ -13,7 +13,7 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { MeiliSearch } from "meilisearch";
-import { createServer } from "http";
+import { createServer, IncomingMessage, ServerResponse } from "http";
 import { parse } from "url";
 import { randomUUID } from "crypto";
 import { pino, type LevelWithSilent } from "pino";
@@ -41,7 +41,7 @@ const meili = new MeiliSearch({
   apiKey: config.meilisearchApiKey,
 });
 
-// Tool definitions (same as stdio version)
+// Tool definitions
 const tools: Tool[] = [
   {
     name: "search_docs",
@@ -93,7 +93,7 @@ const tools: Tool[] = [
   },
 ];
 
-// Tool handlers (simplified)
+// Tool handlers
 async function handleSearchDocs(args: { query: string; limit?: number; tags?: string[] }) {
   const { query, limit = 10, tags } = args;
   const index = meili.index(config.indexName);
@@ -163,8 +163,8 @@ async function handleLookupDecision(args: { question: string }) {
   };
 }
 
-// Create MCP server
-function createMCPServer() {
+// Create MCP server instance
+function createMCPServer(): Server {
   const server = new Server(
     { name: "knowledge-platform", version: "0.1.0" },
     { capabilities: { tools: {} } }
@@ -174,6 +174,8 @@ function createMCPServer() {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
+    
+    logger.info({ tool: name, args }, "Tool called");
     
     try {
       let result: any;
@@ -196,6 +198,7 @@ function createMCPServer() {
       
       return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     } catch (error: any) {
+      logger.error({ error: error.message, tool: name }, "Tool error");
       return { content: [{ type: "text", text: JSON.stringify({ error: error.message }) }], isError: true };
     }
   });
@@ -203,30 +206,113 @@ function createMCPServer() {
   return server;
 }
 
-// HTTP server with streamable transport (supports SSE + HTTP)
+// Session management for stateful connections
+const sessions = new Map<string, { server: Server; transport: StreamableHTTPServerTransport }>();
+
+async function handleMCPRequest(req: IncomingMessage, res: ServerResponse) {
+  const sessionId = req.headers["mcp-session-id"] as string | undefined;
+  
+  // Handle POST requests (new session or existing session)
+  if (req.method === "POST") {
+    // Check for existing session
+    if (sessionId && sessions.has(sessionId)) {
+      const session = sessions.get(sessionId)!;
+      await session.transport.handleRequest(req, res);
+      return;
+    }
+    
+    // New session - create server and transport
+    const server = createMCPServer();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (newSessionId) => {
+        logger.info({ sessionId: newSessionId }, "Session initialized");
+        sessions.set(newSessionId, { server, transport });
+      },
+    });
+    
+    // Clean up on close
+    transport.onclose = () => {
+      const sid = transport.sessionId;
+      if (sid) {
+        logger.info({ sessionId: sid }, "Session closed");
+        sessions.delete(sid);
+      }
+    };
+    
+    await server.connect(transport);
+    await transport.handleRequest(req, res);
+    return;
+  }
+  
+  // Handle GET requests (SSE stream for existing session)
+  if (req.method === "GET") {
+    if (!sessionId || !sessions.has(sessionId)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid or missing session ID" }));
+      return;
+    }
+    
+    const session = sessions.get(sessionId)!;
+    await session.transport.handleRequest(req, res);
+    return;
+  }
+  
+  // Handle DELETE requests (close session)
+  if (req.method === "DELETE") {
+    if (sessionId && sessions.has(sessionId)) {
+      const session = sessions.get(sessionId)!;
+      await session.transport.close();
+      sessions.delete(sessionId);
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+    return;
+  }
+  
+  res.writeHead(405, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ error: "Method not allowed" }));
+}
+
+// HTTP server
 const httpServer = createServer(async (req, res) => {
   const url = parse(req.url || "", true);
+
+  // CORS headers for browser clients
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id");
+  
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
 
   // Health check
   if (url.pathname === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "healthy" }));
+    res.end(JSON.stringify({ 
+      status: "healthy",
+      activeSessions: sessions.size,
+    }));
     return;
   }
 
-  // MCP endpoint - handles both GET (SSE) and POST (messages)
+  // MCP endpoint
   if (url.pathname === "/mcp") {
-    const server = createMCPServer();
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-    });
-
-    res.on("close", () => {
-      logger.info("Connection closed");
-    });
-
-    await server.connect(transport);
-    await transport.handleRequest(req, res);
+    try {
+      await handleMCPRequest(req, res);
+    } catch (error: any) {
+      logger.error({ error: error.message }, "MCP request error");
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
+    }
     return;
   }
 
@@ -235,5 +321,21 @@ const httpServer = createServer(async (req, res) => {
 });
 
 httpServer.listen(config.port, () => {
-  logger.info({ port: config.port, meilisearch: config.meilisearchUrl }, "MCP SSE server started");
+  logger.info({ port: config.port, meilisearch: config.meilisearchUrl }, "MCP HTTP server started");
+});
+
+// Graceful shutdown
+process.on("SIGTERM", async () => {
+  logger.info("Shutting down...");
+  
+  // Close all sessions
+  for (const [sessionId, session] of sessions) {
+    await session.transport.close();
+  }
+  sessions.clear();
+  
+  httpServer.close(() => {
+    logger.info("Server closed");
+    process.exit(0);
+  });
 });
