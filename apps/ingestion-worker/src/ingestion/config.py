@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="")
     openai_model: str = Field(default="gpt-4o-mini")
     anthropic_api_key: str = Field(default="")
-    anthropic_model: str = Field(default="claude-3-5-sonnet-20240620")
+    anthropic_model: str = Field(default="claude-sonnet-4-20250514")
     use_anthropic: bool = Field(default=True)
 
     # Ingestion settings

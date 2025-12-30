@@ -115,10 +115,19 @@ class DocumentParser:
 
     def parse(self, github_file: GitHubFile) -> ParsedDocument:
         """Parse a GitHub file into a structured document."""
-        # Parse frontmatter
-        post = frontmatter.loads(github_file.content)
-        metadata = post.metadata
-        body = post.content
+        # Parse frontmatter; fall back to raw body if YAML is invalid
+        try:
+            post = frontmatter.loads(github_file.content)
+            metadata = post.metadata
+            body = post.content
+        except Exception as exc:  # pragma: no cover - defensive against bad frontmatter
+            logger.warning(
+                "frontmatter_parse_failed",
+                path=github_file.path,
+                error=str(exc),
+            )
+            metadata = {}
+            body = github_file.content
 
         # Convert markdown to HTML
         self.md.reset()
