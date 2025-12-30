@@ -107,6 +107,8 @@ spec:
               value: {{ .Values.ingestionWorker.llm.anthropicModel | quote }}
             - name: USE_ANTHROPIC
               value: {{ ternary "true" "false" .Values.ingestionWorker.llm.useAnthropic | quote }}
+            - name: GRAPHITI_THROTTLE_SECONDS
+              value: {{ .Values.ingestionWorker.graphitiThrottleSeconds | quote }}
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:

@@ -1,5 +1,6 @@
 """Graphiti/Neo4j client factory and helpers."""
 
+import asyncio
 from datetime import datetime
 
 import structlog
@@ -86,6 +87,7 @@ class GraphitiIndexer:
     def __init__(self):
         self.enabled = settings.use_graphiti
         self.client: Graphiti | None = None
+        self.throttle_seconds = settings.graphiti_throttle_seconds
 
     async def initialize(self):
         """Connect and build indices/constraints."""
@@ -104,6 +106,9 @@ class GraphitiIndexer:
         """Index a single document as an episode."""
         if not (self.enabled and self.client and EpisodeType):
             return
+
+        if self.throttle_seconds:
+            await asyncio.sleep(self.throttle_seconds)
 
         reference_time = doc.updated_at or datetime.utcnow()
         try:

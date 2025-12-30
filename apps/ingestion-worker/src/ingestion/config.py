@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = Field(default="")
     anthropic_model: str = Field(default="claude-sonnet-4-20250514")
     use_anthropic: bool = Field(default=True)
+    graphiti_throttle_seconds: float = Field(
+        default=0.0,
+        description="Optional delay between Graphiti index requests to avoid LLM rate limits",
+    )
 
     # Ingestion settings
     ingestion_mode: str = Field(default="webhook", description="webhook, poll, or manual")

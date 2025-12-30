@@ -74,6 +74,7 @@ ingestionWorker:
     useAnthropic: true
     anthropicModel: claude-3-5-sonnet-20240620
     openaiModel: gpt-4o-mini
+  graphitiThrottleSeconds: 0
   redis:
     url: redis://knowledge-platform-redis-master:6379/0
     stream: ingestion:events
