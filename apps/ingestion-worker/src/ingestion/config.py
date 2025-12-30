@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     neo4j_uri: str = Field(default="bolt://localhost:7687")
     neo4j_user: str = Field(default="neo4j")
     neo4j_password: str = Field(default="")
+    neo4j_auth: str = Field(
+        default="",
+        description="Optional NEO4J_AUTH value (format neo4j/<password>) from Neo4j secret",
+    )
     neo4j_enabled: bool = Field(default=True, description="Toggle Graphiti/Neo4j integration")
 
     # LLM configuration (for Graphiti semantic extraction)
@@ -72,7 +76,21 @@ class Settings(BaseSettings):
         """Whether Graphiti (Neo4j) is configured."""
         if not self.neo4j_enabled:
             return False
-        return bool(self.neo4j_password and (self.openai_api_key or self.anthropic_api_key))
+        return bool(
+            self.neo4j_password_value and (self.openai_api_key or self.anthropic_api_key)
+        )
+
+    @property
+    def neo4j_password_value(self) -> str:
+        """Resolve Neo4j password, preferring explicit password then NEO4J_AUTH."""
+        if self.neo4j_password:
+            return self.neo4j_password
+        if self.neo4j_auth:
+            # NEO4J_AUTH is typically "neo4j/<password>"
+            if "/" in self.neo4j_auth:
+                return self.neo4j_auth.split("/", 1)[1]
+            return self.neo4j_auth
+        return ""
 
 
 settings = Settings()

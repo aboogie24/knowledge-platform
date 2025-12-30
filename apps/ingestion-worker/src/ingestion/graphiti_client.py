@@ -34,6 +34,10 @@ def create_graphiti_client() -> Graphiti:
     if not Graphiti:
         raise GraphitiNotConfigured("graphiti-core is not installed")
 
+    password = settings.neo4j_password_value
+    if not password:
+        raise GraphitiNotConfigured("Graphiti requires NEO4J_PASSWORD or NEO4J_AUTH to be set")
+
     if settings.use_anthropic and settings.anthropic_api_key:
         llm_client = AnthropicClient(
             config=LLMConfig(
@@ -51,7 +55,7 @@ def create_graphiti_client() -> Graphiti:
         return Graphiti(
             uri=settings.neo4j_uri,
             user=settings.neo4j_user,
-            password=settings.neo4j_password,
+            password=password,
             llm_client=llm_client,
             embedder=embedder,
         )
@@ -71,7 +75,7 @@ def create_graphiti_client() -> Graphiti:
     return Graphiti(
         uri=settings.neo4j_uri,
         user=settings.neo4j_user,
-        password=settings.neo4j_password,
+        password=password,
         llm_client=llm_client,
     )
 
