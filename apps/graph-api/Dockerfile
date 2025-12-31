@@ -39,4 +39,4 @@ ENV HOST=0.0.0.0 \
 
 EXPOSE 8081
 
-CMD ["uvicorn", "graph_api.main:app", "--factory", "--host", "0.0.0.0", "--port", "8081"]
+CMD ["uvicorn", "graph_api.main:build_app", "--factory", "--host", "0.0.0.0", "--port", "8081"]

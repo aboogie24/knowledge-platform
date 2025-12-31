@@ -45,7 +45,7 @@ def build_app() -> FastAPI:
 def run():
     """Run the server via uvicorn."""
     uvicorn.run(
-        "graph_api.main:app",
+        "graph_api.main:build_app",
         host=settings.host,
         port=settings.port,
         log_level=settings.log_level.lower(),
@@ -53,8 +53,8 @@ def run():
     )
 
 
-# Uvicorn expects `app` at module level when using factory=True
-app = build_app()
+# Uvicorn factory target
+app = build_app
 
 if __name__ == "__main__":
     run()
