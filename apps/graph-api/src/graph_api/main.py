@@ -32,16 +32,26 @@ def build_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    graphiti = None
-    try:
-        graphiti = create_graphiti_client()
-        logger.info("graphiti_client_initialized", neo4j_uri=settings.neo4j_uri)
-    except GraphitiNotConfigured as exc:
-        logger.warning("graphiti_not_configured", error=str(exc))
+    graphiti_client: Graphiti | None = None
+
+    def get_graphiti():
+        nonlocal graphiti_client
+        if graphiti_client:
+            return graphiti_client
+        try:
+            graphiti_client = create_graphiti_client()
+            logger.info("graphiti_client_initialized", neo4j_uri=settings.neo4j_uri)
+            return graphiti_client
+        except GraphitiNotConfigured as exc:
+            logger.warning("graphiti_not_configured", error=str(exc))
+            return None
 
     graphql_app = GraphQLRouter(
         schema,
-        context_getter=lambda request: {"request": request, "graphiti": graphiti},
+        context_getter=lambda request: {
+            "request": request,
+            "graphiti": get_graphiti(),
+        },
     )
     app.include_router(graphql_app, prefix="/graphql")
 
