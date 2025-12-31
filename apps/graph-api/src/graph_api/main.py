@@ -5,6 +5,7 @@ import asyncio
 import structlog
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
 
 from graph_api.config import settings
@@ -20,6 +21,15 @@ def build_app() -> FastAPI:
         title="Knowledge Graph GraphQL API",
         description="GraphQL endpoint backed by Graphiti/Neo4j",
         version="0.1.0",
+    )
+
+    # Allow cross-origin requests (including OPTIONS for GraphQL clients)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     graphiti = None
