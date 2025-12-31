@@ -56,6 +56,10 @@ Component-specific names
 {{- printf "%s-mcp-server" (include "knowledge-platform.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
+{{- define "knowledge-platform.graphApi.fullname" -}}
+{{- printf "%s-graph-api" (include "knowledge-platform.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
 {{/*
 Service account name (shared)
 */}}

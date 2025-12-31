@@ -4,6 +4,7 @@ description: Deploys Knowledge Platform services (ingestion worker and MCP serve
 type: application
 version: 0.1.10
 appVersion: "0.0.1"
+icon: https://raw.githubusercontent.com/helm/helm/main/docs/img/helm.svg
 # Components:
 # - ingestionWorker
 # - mcpServer
