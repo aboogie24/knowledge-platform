@@ -124,6 +124,57 @@ mcpServer:
   extraEnv: []
   podAnnotations: {}
 
+# Graph API (GraphQL) Configuration
+graphApi:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: aboogie24/knowledge-graph-api
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8081
+    enabled: true
+
+  ingress:
+    enabled: false
+    className: nginx
+    annotations: {}
+    hosts:
+      - host: graph-api.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+
+  neo4j:
+    uri: bolt://neo4j:7687
+    user: neo4j
+    authSecretName: "" # optional secret containing NEO4J_AUTH
+
+  llm:
+    useAnthropic: true
+    anthropicModel: claude-3-5-sonnet-20240620
+    openaiModel: gpt-4o-mini
+
+  extraEnv: []
+
 # Meilisearch Configuration (subchart)
 meilisearch:
   enabled: true

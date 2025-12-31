@@ -1,0 +1,19 @@
+{{- if and .Values.graphApi.enabled .Values.graphApi.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "knowledge-platform.graphApi.fullname" . }}
+  labels:
+    app.kubernetes.io/component: graph-api
+    {{- include "knowledge-platform.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.graphApi.service.type }}
+  ports:
+    - port: {{ .Values.graphApi.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/component: graph-api
+    {{- include "knowledge-platform.selectorLabels" . | nindent 4 }}
+{{- end }}
