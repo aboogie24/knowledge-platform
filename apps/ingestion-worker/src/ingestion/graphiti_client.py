@@ -111,13 +111,20 @@ class GraphitiIndexer:
             await asyncio.sleep(self.throttle_seconds)
 
         reference_time = doc.updated_at or datetime.utcnow()
+
+        
+        group_id = doc.tags[0] if doc.tags else "default"
+
+        source_desc = f"{doc.source_url or doc.path} | tags: {','.join(doc.tags or [])} | author: {doc.author or 'unknown'}"
+
         try:
             await self.client.add_episode(
                 name=doc.title,
                 episode_body=doc.body_raw or doc.content,
                 source=EpisodeType.text,
-                source_description=doc.source_url or doc.path,
+                source_description=source_desc,
                 reference_time=reference_time,
+                group_id=group_id,
             )
             logger.debug("graphiti_indexed_doc", doc_id=doc.id, title=doc.title)
         except Exception as exc:

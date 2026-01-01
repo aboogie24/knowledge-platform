@@ -38,6 +38,11 @@ class IngestionOrchestrator:
         await self.indexer.initialize()
         await self.graphiti.initialize()
         logger.info("ingestion_orchestrator_initialized")
+        # Capture current branch head for incremental syncs
+        try:
+            self.last_sha = await self.github.get_branch_head_sha()
+        except Exception as exc:
+            logger.warning("failed_to_get_head_sha", error=str(exc))
 
     async def full_sync(self) -> dict:
         """Perform a full synchronization of all documents."""
@@ -75,6 +80,10 @@ class IngestionOrchestrator:
 
         # Update state
         self.last_sync = datetime.now()
+        try:
+            self.last_sha = await self.github.get_branch_head_sha()
+        except Exception as exc:
+            logger.warning("failed_to_get_head_sha", error=str(exc))
         duration = (self.last_sync - start_time).total_seconds()
 
         result = {
@@ -129,6 +138,32 @@ class IngestionOrchestrator:
         }
 
         logger.info("incremental_sync_completed", **result)
+        return result
+
+    async def sync_since_last(self) -> dict:
+        """Sync changes since the last known commit SHA."""
+        try:
+            latest_sha = await self.github.get_branch_head_sha()
+        except Exception as exc:
+            logger.warning("failed_to_get_head_sha", error=str(exc))
+            latest_sha = None
+
+        if not self.last_sha or not latest_sha or self.last_sha == latest_sha:
+            logger.debug("no_changes_detected", last_sha=self.last_sha, latest_sha=latest_sha)
+            return {"status": "skipped", "reason": "no changes"}
+
+        try:
+            changed = await self.github.get_changed_files(self.last_sha, latest_sha)
+        except Exception as exc:
+            logger.error("failed_to_get_changed_files", error=str(exc))
+            return {"status": "error", "error": str(exc)}
+
+        if not changed:
+            self.last_sha = latest_sha
+            return {"status": "skipped", "reason": "no docs changed"}
+
+        result = await self.incremental_sync(changed)
+        self.last_sha = latest_sha
         return result
 
     async def process_webhook(self, payload: dict) -> dict:

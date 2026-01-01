@@ -105,11 +105,16 @@ async def poll_loop():
     import asyncio
     
     logger.info("starting_poll_loop", interval=settings.poll_interval_seconds)
+    first_run = True
     
     while True:
         try:
             with SYNC_DURATION.labels(type="poll").time():
-                result = await orchestrator.full_sync()
+                if first_run:
+                    result = await orchestrator.full_sync()
+                    first_run = False
+                else:
+                    result = await orchestrator.sync_since_last()
                 DOCUMENTS_INDEXED.inc(result.get("documents_processed", 0))
         except Exception as e:
             logger.error("poll_sync_failed", error=str(e))

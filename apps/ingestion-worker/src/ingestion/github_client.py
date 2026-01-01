@@ -132,6 +132,15 @@ class GitHubClient:
         logger.info("fetched_all_docs", count=len(docs))
         return docs
 
+    async def get_branch_head_sha(self) -> str:
+        """Get the latest commit SHA for the configured branch."""
+        async with httpx.AsyncClient() as client:
+            url = f"{self.api_url}/repos/{self.repo}/commits/{self.branch}"
+            response = await client.get(url, headers=self.headers)
+            response.raise_for_status()
+            data = response.json()
+            return data["sha"]
+
     async def get_changed_files(self, before_sha: str, after_sha: str) -> list[str]:
         """Get list of changed files between two commits."""
         async with httpx.AsyncClient() as client:
