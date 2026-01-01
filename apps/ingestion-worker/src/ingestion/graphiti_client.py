@@ -30,8 +30,8 @@ class GraphitiNotConfigured(Exception):
     """Raised when Graphiti integration is not available."""
 
 
-def create_graphiti_client() -> Graphiti:
-    """Create a Graphiti client, preferring Anthropic to avoid reasoning.effort bugs."""
+def create_graphiti_client(prefer_openai: bool = False) -> Graphiti:
+    """Create a Graphiti client, preferring Anthropic unless overridden."""
     if not Graphiti:
         raise GraphitiNotConfigured("graphiti-core is not installed")
 
@@ -39,7 +39,7 @@ def create_graphiti_client() -> Graphiti:
     if not password:
         raise GraphitiNotConfigured("Graphiti requires NEO4J_PASSWORD or NEO4J_AUTH to be set")
 
-    if settings.use_anthropic and settings.anthropic_api_key:
+    if settings.use_anthropic and settings.anthropic_api_key and not prefer_openai:
         llm_client = AnthropicClient(
             config=LLMConfig(
                 api_key=settings.anthropic_api_key,
@@ -88,6 +88,7 @@ class GraphitiIndexer:
         self.enabled = settings.use_graphiti
         self.client: Graphiti | None = None
         self.throttle_seconds = settings.graphiti_throttle_seconds
+        self._fallback_to_openai = False
 
     async def initialize(self):
         """Connect and build indices/constraints."""
@@ -111,10 +112,7 @@ class GraphitiIndexer:
             await asyncio.sleep(self.throttle_seconds)
 
         reference_time = doc.updated_at or datetime.utcnow()
-
-        
         group_id = doc.tags[0] if doc.tags else "default"
-
         source_desc = f"{doc.source_url or doc.path} | tags: {','.join(doc.tags or [])} | author: {doc.author or 'unknown'}"
 
         try:
@@ -128,6 +126,33 @@ class GraphitiIndexer:
             )
             logger.debug("graphiti_indexed_doc", doc_id=doc.id, title=doc.title)
         except Exception as exc:
+            # If Anthropic credits are exhausted, optionally fall back to OpenAI once
+            if (
+                settings.use_anthropic
+                and not self._fallback_to_openai
+                and settings.openai_api_key
+                and self._is_credit_error(exc)
+            ):
+                logger.warning(
+                    "graphiti_fallback_to_openai",
+                    doc_id=doc.id,
+                    error=str(exc),
+                )
+                try:
+                    self.client = create_graphiti_client(prefer_openai=True)
+                    self._fallback_to_openai = True
+                    await self.client.add_episode(
+                        name=doc.title,
+                        episode_body=doc.body_raw or doc.content,
+                        source=EpisodeType.text,
+                        source_description=source_desc,
+                        reference_time=reference_time,
+                        group_id=group_id,
+                    )
+                    logger.debug("graphiti_indexed_doc_openai_fallback", doc_id=doc.id, title=doc.title)
+                    return
+                except Exception as retry_exc:
+                    logger.warning("graphiti_fallback_failed", doc_id=doc.id, error=str(retry_exc))
             logger.warning("graphiti_index_failed", doc_id=doc.id, error=str(exc))
 
     async def index_documents(self, docs: list):
@@ -136,3 +161,9 @@ class GraphitiIndexer:
             return
         for doc in docs:
             await self.index_document(doc)
+
+    @staticmethod
+    def _is_credit_error(exc: Exception) -> bool:
+        """Detect credit/insufficient balance errors."""
+        msg = str(exc).lower()
+        return "credit balance" in msg or "insufficient credit" in msg
