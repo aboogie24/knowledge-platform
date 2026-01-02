@@ -5,7 +5,7 @@ metadata:
   name: {{ include "knowledge-platform.graphApi.fullname" . }}
   labels:
     app.kubernetes.io/component: graph-api
-    {{- include "knowledge-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/name: knowledge-platform-graph-api
 spec:
   type: {{ .Values.graphApi.service.type }}
   ports:
@@ -15,5 +15,4 @@ spec:
       name: http
   selector:
     app.kubernetes.io/component: graph-api
-    {{- include "knowledge-platform.selectorLabels" . | nindent 4 }}
 {{- end }}
